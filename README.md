@@ -1,9 +1,6 @@
-<<<<<<< HEAD
+
 During covid my dad was building a comercial building and since everyone was working from home he couldnt be on site everyday so i used to go check on the construction progress. one day they poured a slab and i remember standing there watching the workers finish it off and i just asked the site supervisor when can we continue building on top of this. he said 28 days. just 28 days, no explanation, no measurement, nothing. i thought that was wierd because what if it gets strong enough in 20 days or what if something goes wrong and its still weak on day 30. nobody was checking anything they were just waiting.
 
-that stayed in my head for a long time and when i started learning instrumentation properly i realised there is actually a method for this. its called the maturity method and it says concrete strength is directly related to how much heat it has accumulated over time. the hotter and longer it cures the stronger it gets and you can actually calculate the strength in real time if you have a temperature sensor inside the slab. so i built this.
+that stayed in my head for a long time and when i started learning instrumentation properly i realised there is actually a method for this. its called the maturity method and it says concrete strength is directly related to how much heat it has accumulated over time. the hotter and longer it cures the stronger it gets and you can actually calculate the strength in real time if you have a temperature sensor inside the slab. so i built this
 
  this simulates sensors embeded in a concrete slab, calculates something called a maturity index every second using the nurse-saul equation, and converts that into a predicted compressive strength in MPa. theres a live progress bar that shows you exactly what percentage of the design strength has been reached and it sends alerts when the slab crosses construction milestones like when its safe to remove formwork or when you can start loading it. you can also simulate bad conditions like a sudden cold night or somebody removing the wet curing too early and watch how badly it effects the strength curve. if this was running on my dads site back then we wouldnt have had to just guess and wait.
-=======
-# Concrete-curing-live-strength-predictor
->>>>>>> bbd92af3bdb2dc32cb651891a14c3825a25edb1d
