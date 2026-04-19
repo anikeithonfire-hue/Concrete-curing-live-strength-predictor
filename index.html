@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Concrete Curing Monitor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #111; }
+
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 18px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 { font-size: 18px; font-weight: 500; }
+    header p  { font-size: 13px; color: #888; margin-top: 3px; }
+    #header-time { font-size: 13px; color: #888; }
+
+    .container { padding: 20px 28px; }
+
+    .status-bar {
+      padding: 12px 18px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      border: 1px solid;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status-bar.green { background: #f0fdf4; border-color: #86efac; color: #166534; }
+    .status-bar.red   { background: #fff1f2; border-color: #fca5a5; color: #991b1b; }
+    .led { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .led.green { background: #22c55e; }
+    .led.red   { background: #ef4444; animation: blink .7s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+    /* strength progress bar — the hero element */
+    .strength-hero {
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+    .strength-hero h2 { font-size: 14px; font-weight: 500; color: #666; margin-bottom: 12px; }
+    .progress-track {
+      background: #f0f0f0;
+      border-radius: 8px;
+      height: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 8px;
+      background: #2563eb;
+      transition: width 0.8s ease;
+      display: flex;
+      align-items: center;
+      padding-left: 10px;
+      min-width: 40px;
+    }
+    .progress-fill span { font-size: 13px; font-weight: 500; color: #fff; white-space: nowrap; }
+    .milestone-markers {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 11px;
+      color: #aaa;
+    }
+    .milestone-alert {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #1d4ed8;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 8px 14px;
+      display: none;
+    }
+
+    /* metric cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      padding: 14px 18px;
+    }
+    .card-label { font-size: 12px; color: #888; margin-bottom: 5px; }
+    .card-value { font-size: 24px; font-weight: 500; }
+    .card-unit  { font-size: 12px; color: #aaa; margin-left: 2px; }
+    .card.alarm .card-value { color: #dc2626; }
+    .card.milestone .card-value { color: #2563eb; }
+
+    /* charts */
+    .charts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .chart-box {
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .chart-box h3 { font-size: 13px; font-weight: 500; color: #555; margin-bottom: 10px; }
+    .chart-box canvas { width: 100% !important; height: 170px !important; }
+
+    /* fault controls */
+    .controls {
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+    .controls-label { font-size: 13px; color: #666; margin-bottom: 10px; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    button {
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid #d0d0d0;
+      background: #fff;
+      cursor: pointer;
+    }
+    button:hover { background: #f5f5f5; }
+    button.danger { border-color: #fca5a5; color: #dc2626; }
+    button.danger:hover { background: #fff1f2; }
+    button.safe { border-color: #86efac; color: #166534; }
+    button.safe:hover { background: #f0fdf4; }
+    button.neutral { border-color: #bfdbfe; color: #1d4ed8; }
+    button.neutral:hover { background: #eff6ff; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Concrete Curing Monitor</h1>
+    <p>Nurse-Saul Maturity Method  ·  M30 Grade OPC Concrete  ·  Live Strength Prediction</p>
+  </div>
+  <div id="header-time">--</div>
+</header>
+
+<div class="container">
+
+  <!-- status bar -->
+  <div class="status-bar green" id="status-bar">
+    <div class="led green" id="led"></div>
+    <span id="status-text">Loading...</span>
+  </div>
+
+  <!-- strength progress hero -->
+  <div class="strength-hero">
+    <h2>Compressive strength progress — target 30 MPa (M30 grade)</h2>
+    <div class="progress-track">
+      <div class="progress-fill" id="strength-bar" style="width: 0%">
+        <span id="strength-bar-label">0%</span>
+      </div>
+    </div>
+    <div class="milestone-markers">
+      <span>0 MPa</span>
+      <span>25% — formwork</span>
+      <span>50% — light loads</span>
+      <span>70% — construction loads</span>
+      <span>30 MPa</span>
+    </div>
+    <div class="milestone-alert" id="milestone-alert"></div>
+  </div>
+
+  <!-- metric cards -->
+  <div class="cards">
+    <div class="card" id="card-temp">
+      <div class="card-label">Concrete temperature</div>
+      <div class="card-value" id="v-temp">--<span class="card-unit">°C</span></div>
+    </div>
+    <div class="card" id="card-humid">
+      <div class="card-label">Curing humidity</div>
+      <div class="card-value" id="v-humid">--<span class="card-unit">%</span></div>
+    </div>
+    <div class="card milestone">
+      <div class="card-label">Maturity index</div>
+      <div class="card-value" id="v-maturity">--<span class="card-unit">°C·h</span></div>
+    </div>
+    <div class="card milestone">
+      <div class="card-label">Predicted strength</div>
+      <div class="card-value" id="v-strength">--<span class="card-unit">MPa</span></div>
+    </div>
+  </div>
+
+  <!-- charts -->
+  <div class="charts">
+    <div class="chart-box"><h3>Concrete temperature (°C)</h3><canvas id="c-temp"></canvas></div>
+    <div class="chart-box"><h3>Predicted strength (MPa)</h3><canvas id="c-strength"></canvas></div>
+    <div class="chart-box"><h3>Maturity index (°C·h)</h3><canvas id="c-maturity"></canvas></div>
+    <div class="chart-box"><h3>Curing humidity (%)</h3><canvas id="c-humid"></canvas></div>
+  </div>
+
+  <!-- fault injection controls -->
+  <div class="controls">
+    <div class="controls-label">Simulate site conditions:</div>
+    <div class="btn-row">
+      <button class="danger"  onclick="fault('cold_snap')">Cold snap (winter)</button>
+      <button class="danger"  onclick="fault('heat_spike')">Heat spike (summer)</button>
+      <button class="danger"  onclick="fault('curing_removed')">Remove wet curing</button>
+      <button class="safe"    onclick="fault('clear')">Restore normal conditions</button>
+      <button class="neutral" onclick="resetSim()">Reset simulation</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const MAX = 120;
+
+function mkChart(id, color, label) {
+  return new Chart(document.getElementById(id), {
+    type: "line",
+    data: {
+      labels: [],
+      datasets: [{ data: [], borderColor: color, borderWidth: 2,
+                   pointRadius: 0, tension: 0.3, fill: false }]
+    },
+    options: {
+      responsive: false, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: { grid: { color: "#f0f0f0" }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+const charts = {
+  temp    : mkChart("c-temp",     "#e67e22", "temp"),
+  strength: mkChart("c-strength", "#2563eb", "strength"),
+  maturity: mkChart("c-maturity", "#7c3aed", "maturity"),
+  humid   : mkChart("c-humid",    "#0f766e", "humid"),
+};
+
+function push(chart, val) {
+  const d = chart.data;
+  if (d.labels.length >= MAX) { d.labels.shift(); d.datasets[0].data.shift(); }
+  d.labels.push("");
+  d.datasets[0].data.push(val);
+  chart.update();
+}
+
+async function fetchData() {
+  try {
+    const r = await fetch("/api/data");
+    const d = await r.json();
+    if (!d.latest) return;
+
+    const l = d.latest;
+
+    // header time
+    document.getElementById("header-time").textContent =
+      "Elapsed: " + l.elapsed_hours.toFixed(2) + " hrs";
+
+    // metric cards
+    document.getElementById("v-temp").innerHTML    = l.temp    + '<span class="card-unit">°C</span>';
+    document.getElementById("v-humid").innerHTML   = l.humidity + '<span class="card-unit">%</span>';
+    document.getElementById("v-maturity").innerHTML= parseFloat(l.maturity).toFixed(1) + '<span class="card-unit">°C·h</span>';
+    document.getElementById("v-strength").innerHTML= parseFloat(l.strength_mpa).toFixed(2) + '<span class="card-unit">MPa</span>';
+
+    // card alarm colouring
+    const tc = document.getElementById("card-temp");
+    tc.className = "card" + (d.alarm ? " alarm" : "");
+    const hc = document.getElementById("card-humid");
+    hc.className = "card" + (d.alarm ? " alarm" : "");
+
+    // status bar
+    const bar = document.getElementById("status-bar");
+    const led = document.getElementById("led");
+    bar.className = "status-bar " + (d.alarm ? "red" : "green");
+    led.className = "led " + (d.alarm ? "red" : "green");
+    document.getElementById("status-text").textContent = d.alarm_message;
+
+    // strength progress bar
+    const pct = Math.min(parseFloat(l.strength_pct), 100);
+    const fill = document.getElementById("strength-bar");
+    fill.style.width = pct + "%";
+    // colour changes with progress
+    if (pct < 25)      fill.style.background = "#ef4444";
+    else if (pct < 50) fill.style.background = "#f97316";
+    else if (pct < 70) fill.style.background = "#eab308";
+    else if (pct < 100)fill.style.background = "#22c55e";
+    else               fill.style.background = "#2563eb";
+    document.getElementById("strength-bar-label").textContent = pct.toFixed(1) + "%";
+
+    // milestone alert
+    if (d.milestone) {
+      const el = document.getElementById("milestone-alert");
+      el.textContent = "MILESTONE: " + d.milestone;
+      el.style.display = "block";
+      setTimeout(() => { el.style.display = "none"; }, 8000);
+    }
+
+    // push to charts
+    push(charts.temp,     l.temp);
+    push(charts.strength, parseFloat(l.strength_mpa));
+    push(charts.maturity, parseFloat(l.maturity));
+    push(charts.humid,    l.humidity);
+
+  } catch(e) { console.error(e); }
+}
+
+async function fault(type) {
+  await fetch("/api/fault/" + type, { method: "POST" });
+}
+async function resetSim() {
+  await fetch("/api/reset", { method: "POST" });
+  Object.values(charts).forEach(c => {
+    c.data.labels = [];
+    c.data.datasets[0].data = [];
+    c.update();
+  });
+}
+
+fetchData();
+setInterval(fetchData, 1000);
+</script>
+</body>
+</html>
